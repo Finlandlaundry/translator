@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - EMBED_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      - RAG_INDEX_DIR=/app/data/faiss_index
+      - DATABASE_URL=sqlite:///app/data/chat_history.db
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+networks:
+  default:
+    name: korean-chatbot-network
